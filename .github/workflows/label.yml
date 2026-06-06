@@ -24,7 +24,7 @@ jobs:
             const issue_number = context.payload.issue.number;
             const labelName = 'GSSoC';
             
-            const color = 'FD873D'; 
+            const color = 'CCCCCC'; 
             const description = 'Under GirlScript Summer of Code';
             
             try {
