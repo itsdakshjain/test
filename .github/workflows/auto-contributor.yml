@@ -69,17 +69,13 @@ jobs:
             exit 1
           fi
 
-          start_line=$(grep -n '' README.md | cut -d: -f1)
-          end_line=$(grep -n '' README.md | cut -d: -f1)
-          if [ "$start_line" -ge "$end_line" ]; then
-            echo "Error: CONTRIBUTORS_START must appear before CONTRIBUTORS_END."
-            exit 1
-          fi
-          
-          sed -i '//,// {
-            //! { //! d; }
-          }' README.md
-          sed -i '//r gallery_fragment.txt' README.md
+          # Use AWK to safely regenerate the file by replacing everything 
+          # between START and END with the contents of gallery_fragment.txt
+          awk '
+            // { print; system("cat gallery_fragment.txt"); skip=1; next }
+            // { skip=0 }
+            !skip
+          ' README.md > README.tmp && mv README.tmp README.md
  
       - name: Commit and Push
         run: |
