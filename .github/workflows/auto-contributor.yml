@@ -4,7 +4,8 @@ on:
   schedule: 
     - cron: '0 0 * * *'      
     
-  pull_request:
+  # Changed from pull_request to pull_request_target
+  pull_request_target:
     types: [closed]
     branches:
       - main
@@ -16,10 +17,15 @@ permissions:
 
 jobs:
   update-readme:
+    # Ensure it only executes actual MERGED pull requests, not just closed ones
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Critical for pull_request_target to check out the target branch (main) correctly
+          ref: ${{ github.event.repository.default_branch }}
 
       - name: Fetch Merged PR Authors (Pagination)
         env:
@@ -42,6 +48,7 @@ jobs:
             | .user.login] 
             | unique 
             | sort' final_list.json > contributors.json
+
       - name: Build Gallery HTML
         run: |
           set -euo pipefail
@@ -55,24 +62,24 @@ jobs:
         run: |
           set -euo pipefail
           
-          start_count=$(grep -c '<!-- CONTRIBUTORS_START -->' README.md || true)
-          end_count=$(grep -c '<!-- CONTRIBUTORS_END -->' README.md || true)
+          start_count=$(grep -c '' README.md || true)
+          end_count=$(grep -c '' README.md || true)
           if [ "$start_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
             echo "Error: README.md must contain exactly one pair of markers."
             exit 1
           fi
 
-          start_line=$(grep -n '<!-- CONTRIBUTORS_START -->' README.md | cut -d: -f1)
-          end_line=$(grep -n '<!-- CONTRIBUTORS_END -->' README.md | cut -d: -f1)
+          start_line=$(grep -n '' README.md | cut -d: -f1)
+          end_line=$(grep -n '' README.md | cut -d: -f1)
           if [ "$start_line" -ge "$end_line" ]; then
             echo "Error: CONTRIBUTORS_START must appear before CONTRIBUTORS_END."
             exit 1
           fi
           
-          sed -i '/<!-- CONTRIBUTORS_START -->/,/<!-- CONTRIBUTORS_END -->/ {
-            /<!-- CONTRIBUTORS_START -->/! { /<!-- CONTRIBUTORS_END -->/! d; }
+          sed -i '//,// {
+            //! { //! d; }
           }' README.md
-          sed -i '/<!-- CONTRIBUTORS_START -->/r gallery_fragment.txt' README.md
+          sed -i '//r gallery_fragment.txt' README.md
  
       - name: Commit and Push
         run: |
@@ -85,8 +92,7 @@ jobs:
             echo "No changes to README."
           else
             git commit -m "update contributor list [skip ci]"
-            git push 
+            # Explicitly target main (or fallback dynamically to target base branch)
+            TARGET_BRANCH="${{ github.event.pull_request.base.ref || github.ref_name }}"
+            git push origin HEAD:"$TARGET_BRANCH"
           fi
-
-
-          
