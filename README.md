@@ -3,6 +3,3 @@
 <!-- CONTRIBUTORS_END -->
 
 try hard
-
-
-
